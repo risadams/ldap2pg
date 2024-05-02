@@ -1,4 +1,4 @@
-VERSION=$(shell grep -Po 'v\K.+' internal/VERSION)
+VERSION=$(shell git describe --tags | grep -Po 'v\K.+')
 YUM_LABS?=$(wildcard ../yum-labs)
 
 default:
@@ -38,11 +38,13 @@ docs: docs/builtins.md
 build-docker:
 	docker build --build-arg http_proxy -t dalibo/ldap2pg:local -f docker/Dockerfile .
 
+RELEASE_BRANCH=master
 release:
-	sed -i 's/^# Unreleased$$/# ldap2pg $(VERSION)/' docs/changelog.md
-	git commit internal/VERSION docs/changelog.md -m "Version $(VERSION)"
-	git tag v$(VERSION)
-	git push git@github.com:dalibo/ldap2pg.git refs/heads/master:refs/heads/master v$(VERSION)
+	git rev-parse --abbrev-ref HEAD | grep -q '^$(RELEASE_BRANCH)$$'
+	! grep -q '# Unreleased' CHANGELOG.md
+	git commit docs/changelog.md -m "New version"
+	git tag v$(shell grep -m 1 -Po '^# ldap2pg \K.+' CHANGELOG.md)
+	git push --follow-tags git@github.com:dalibo/ldap2pg.git refs/heads/$(RELEASE_BRANCH):refs/heads/$(RELEASE_BRANCH)
 	@echo Now wait for CI and run make publish-packages;
 
 publish-packages:
